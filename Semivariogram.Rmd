@@ -1,0 +1,77 @@
+---
+title: "Untitled"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+```{r}
+mydata=read.table("C:/Users/Rohan/Documents/Centroid.csv",sep=",", header = T, fill = T)
+```
+
+
+```{r}
+distance=dist(mydata[,38:39])
+distance_matrix=as.matrix(distance)
+```
+
+```{r}
+new_table=read.table("C:/Users/Rohan/Downloads/Incidence.csv",sep=",", header = T, fill = T)
+```
+
+```{r}
+new_table=new_table[which(new_table$Select_County==1),]
+```
+
+
+
+```{r}
+df=merge(x=mydata,y=new_table,by="GEOID10",all = TRUE)
+```
+
+```{r}
+colnames(df)[38]="x"
+colnames(df)[39]="y"
+myvars=c("x","y","MEAN_ANNUAL_IR_ESTAB")
+new_df=df[myvars]
+new_df=new_df[complete.cases(new_df),]
+```
+
+```{r}
+# basic variogram
+library(gstat)
+library(lattice)
+WNV.vgm <- variogram(MEAN_ANNUAL_IR_ESTAB~1, loc= ~x+y, data=new_df,cutoff=30)
+plot(WNV.vgm)
+```
+
+
+
+
+```{r}
+hist(distance)
+```
+
+```{r}
+euclid=dist(new_df[1:2])
+any(is.na(euclid))
+```
+
+```{r}
+d=density(euclid)
+plot(d)
+```
+
+
+
+```{r}
+v=fit.variogram(WNV.vgm,vgm(psill=1.0,"Sph",range = 28,0.1))
+v
+```
+
