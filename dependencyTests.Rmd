@@ -1,7 +1,12 @@
 ---
-title: "R Notebook"
+title: "Dependency Test"
 output: html_notebook
 ---
+This is a code calculating the Pearson's correlation, Spearman's rank coefficient, 
+and Hoeffding's D coefficient between infection rate (IR) and weather variables in 
+different zones. The Pearson's correlation and Spearman's rank coefficient calculates 
+linear relationship between the variables, while Hoeffding's D coefficient tests
+wether there is a dependency at all.
 
 Load Library
 ```{r}
