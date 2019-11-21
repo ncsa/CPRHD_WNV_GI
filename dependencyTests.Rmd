@@ -1,0 +1,63 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Load Library
+```{r}
+library(Hmisc)
+```
+
+Function that calculates correlations
+x: the data spreadsheet
+colFilter: the column used to separate the zones
+colX: the column used as an independent variable
+colY: the column used as a dependent variable
+```{r}
+corrList<-function(x,colFilter,colX,colY){
+  zones<-NULL
+  hoeffdD<-NULL
+  pearsonr<-NULL
+  spearmanr<-NULL
+  for (z0 in unique(x[,colFilter])) {
+    x1=x[x[,colFilter]==z0,]
+    if(length(x1[,colY])>4){
+      h0=hoeffd(x1[,colX],x1[,colY])$D[2]
+      p0<-rcorr(x1[,colX],x1[,colY],type="pearson")$r[2]
+      s0<-rcorr(x1[,colX],x1[,colY],type="spearman")$r[2]
+      hoeffdD<-c(hoeffdD,h0)
+      pearsonr<-c(pearsonr,p0)
+      spearmanr<-c(spearmanr,s0)
+      zones<-c(zones,z0)
+    }
+  }
+  result=data.frame(cbind(zones,hoeffdD,pearsonr,spearmanr))
+  names(result)<-colnames(result)
+  return(result)
+}
+```
+
+Load dataframe
+modify the variable 'fin' to your path and file name
+```{r}
+fin='~/Work/CPRHD/CPRHD_WNV_USA_SWMM/testCor/Dataframe_avg.csv'
+x<-read.table(fin,sep=',',header=TRUE,quote="",stringsAsFactors=FALSE)
+```
+
+Iterate over socioeconomics zones
+```{r}
+colFilter='Socio_econ_class'
+colX='Temp_2m'
+colY='IR'
+corrSocio<-corrList(x,colFilter,colX,colY)
+```
+
+Iterate over weather zones
+```{r}
+colFilter='Weather_class'
+colX='Temp_2m'
+colY='IR'
+corrWeather<-corrList(x,colFilter,colX,colY)
+```
+
+
