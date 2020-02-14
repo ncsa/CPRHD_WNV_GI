@@ -1,0 +1,660 @@
+---
+title: "WNV_analysis"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+#Hypothesis tests R code: https://academic.oup.com/bib/article/15/6/906/176706#supplementary-data
+
+## Zone-wise analysis of variables
+
+All the weather variables, followed by socio-economic variables are analyzed climatic zone-wise. Various hypothesis tests results for each variable can be seen in the dataframe printed 
+(two types of analysis: all_years and median years). Plots of the variation of the IR, for each zone, with change in the value of the variable are also plotted.
+
+
+```{r , echo=FALSE,  warning= FALSE, message= FALSE}
+################################################################################
+#
+# R code of the simulations described by Suzana de Siqueira Santos, Daniel 
+# Yasumasa Takahashi, Asuka Nakata and Andre Fujita on "A comparative study of 
+# statistical methods used to identify dependencies between gene expression 
+# signals" (2013).
+#
+################################################################################
+
+
+# DEPENDENCIES =================================================================
+library(plyr)
+library(astsa)
+require(Hmisc) # Implementation of Hoeffding's D measure (available from CRAN)
+require(energy) # Implementantion of distance correlation (available from CRAN)
+require(HHG2x2) # Implementation of HHG measure (available at 
+                # http://www.math.tau.ac.il/~ruheller/Software.html)
+require(entropy) # Implementation of mutual information (available from CRAN)
+require(gregmisc) # (available from CRAN)
+
+# AUXILIAR FUNCTIONS ===========================================================
+
+# Estimates the area under the graph of function f on [a, b]
+riemann.sum <- function (f, a, b, intervals = 1000) {
+    area <- 0
+    w <- (b - a)/intervals;
+    for (x in seq(a, b, w)) {
+        h <- f(x)
+        area <- area + h*w
+    }
+    return (area)
+}
+
+# Estimates the area under the ROC curve from pvalues read form the file.
+auc <- function (file) {
+    pvalues <- as.numeric(gsub(",", "\\.", readLines(file))) # Necessary 
+                                                             # depending on R 
+                                                             # locale
+    f <- function (alpha) {
+        return (length(which(pvalues < alpha))/length(pvalues)) 
+    }
+    return (riemann.sum(f, 0, 1))   
+}
+
+# Generates a random sample of size n from a random variable that follows a 
+# uniform distribution on [-1, 1]
+unif <- function (n) {
+    return(runif(n, min = -1))
+}
+
+# Generates a random sample of size n from a random variable that follows a 
+# normal distribution with mean -2 and standard deviation 1
+negnorm <- function(n) {rnorm(n, -2, 1)}
+
+# Carries out a specific scenario of simulations
+# INPUT:
+### x is a numeric vector
+### times is the number of tests that will be carried out
+### outliers.index is a vector that contains the positions in which outliers 
+# will be inserted. When outliers.index=NULL, no outlier is inserted.
+### association is the y vector of the tests of independence before the addition 
+# of noise
+### noise is a function that generates a random sample from a given probability
+# distribution. In each step of the simulation, the y values are the
+# values in the association vector summed with the values of the generated 
+# random sample.
+### outliers.noise is a function that generates a random sample from a given 
+# probability distribution. If outliers.index!=NULL, in each step of the 
+# simulation a random sample is generated and inserted into the outliers 
+# positions of the y vector. 
+### title is a string that will appear in the output file name. It usually
+# describes the current scenario of the simulations
+### methods is a list of the methods that will be used to test independence. 
+# methods$functions is a vector of R procedures that perform the tests (their
+# inputs are two vectors and their outputs are the p-values of the tests) and
+# methods$names is a vector of the methods names (they must appear in the
+# same order of the corresponding functions)
+simulate <- function (x, times = 1000, outliers.index = NULL, 
+                      association = 0, noise = rnorm, 
+                      outliers.noise = function(len){rnorm(len, 0, 100)}, 
+                      title="", methods = 
+                      list("functions" = c(pearson.test, spearman.test, 
+                            kendall.test, dcorrelation.test, hoeffding.test, 
+                            hhg.test, mutualinfo.test, mic.test),
+                          "names" = c("Pearson", "Spearman", "Kendall", 
+                          "Dcor", "Hoeffding", "HHG", "MI", "MIC"))) {
+                      
+    nmethods <- length(methods$functions)
+    pvalues <- matrix(0, times, nmethods)
+    
+    n <- length(x)
+    
+    title <- paste(n, title,  sep=" - ")
+    title <- paste("n", title,  sep="=")
+    
+    for (i in 1:times) {
+        y <- association + noise(n)
+        outliers.length <- length(outliers.index)
+        if (outliers.length != 0) {
+            outliers <- outliers.noise(outliers.length)
+            for (j in 1:outliers.length)
+                y[outliers.index[j]] <- outliers[j]
+        }
+
+        for (j in 1:nmethods) {
+            pvalues[i, j] <- as.numeric(methods$functions[[j]](x, y))
+            write(pvalues[i,j], paste(title, methods$names[j], sep=" - "),
+                  append = TRUE)
+        }
+    }
+}
+
+
+# TESTS OF INDEPENCENCE ========================================================
+
+#-------------------------------------------------------------------------------
+# Let x and y be samples of X and Y, respectively. 
+# The test of independence between X and Y is described as a hypothesis test 
+# as follows:
+# H0: X and Y are independent (null hypothesis)
+# H1: X and Y are not independent (alternative hypothesis).
+#-------------------------------------------------------------------------------
+
+# Computes the p-value of the test of independence for Pearson's correlation.
+# x and y are samples from two random variables X and Y, respectively.
+pearson.test <- function (x, y) {
+    return(cor.test(x, y)$p.value)
+}
+
+# Computes the p-value of the test of independence for Spearman's correlation.
+# x and y are samples from two random variables X and Y, respectively.
+spearman.test <- function (x, y) {
+    return(cor.test(x, y, method="spearman")$p.value)
+}
+
+# Computes the p-value of the test of independence for Kendall's correlation.
+# x and y are samples from two random variables X and Y, respectively.
+kendall.test <- function (x, y) {
+    return(cor.test(x, y, method = "kendall")$p.value)
+}
+
+# Computes the p-value of the test of independence for distance correlation.
+# x and y are samples from two random variables X and Y, respectively.
+dcorrelation.test <- function (x, y, nresamplings = 1000) {
+    return(dcov.test(x, y, R = nresamplings)$p.value)
+}
+
+# Computes the p-value of the test of independence for Hoeffding's D measure.
+# x and y are samples from two random variables X and Y, respectively.
+hoeffding.test <- function (x, y) {
+    pvalue <- c(hoeffd(x, y)["P"], recursive = TRUE)[2]
+    return(pvalue)
+}
+
+# Computes the empirical mutual information between two vectors x and y.
+# x and y are samples from random variables X and Y, respectively.
+mutualinfo <- function(x, y) {
+    Mx <- matrix(x, length(x), 1)
+    My <- matrix(y, length(y), 1)
+    nbins <- ceiling(log(length(Mx[,1]),2)) + 1
+    a <- hist2d(cbind(Mx,My), nbins=nbins,show=FALSE)
+    result <- mi.empirical(a$counts)
+    return(result)
+}
+
+# Computes the p-value of the test of independence for mutual information.
+# x and y are samples from two random variables X and Y, respectively.
+mutualinfo.test <- function(x, y, nresamplings = 1000) {
+    rho <- mutualinfo(x, y) 
+    rhos <- vector(length = nresamplings)
+    for (i in 1:nresamplings)
+        rhos[i] <- mutualinfo(x, sample(y, replace = FALSE))
+    pvalue <- 1 - rank(c(rho, rhos, recursive=TRUE), ties="first")[1]/(nresamplings + 1)
+    return(pvalue)
+}
+
+# Computes the a approximation of the maximal information coefficient between 
+# two vectors x and y.
+# x and y are samples from random variables X and Y, respectively.
+mic <- function (x, y) {
+   data <- matrix(0, 2, length(x))
+   data[1, ] <- x
+   data[2, ] <- y 
+   rMINE(data, "mic", 0)
+   result <- scan("mic,mv=0,cv=0.0,B=n^0.6,Results.csv",what="",sep=",")
+   return(as.numeric(result[11]))
+}
+
+# Computes the p-value of the test of independence for maximal information 
+# coefficient.
+# x and y are samples from two random variables X and Y, respectively.
+mic.test <- function (x, y, nresamplings = 1000) {
+    rho <- mic(x, y) 
+    rhos <- vector(length = nresamplings)
+    for (i in 1:nresamplings)
+        rhos[i] <- mic(x, sample(y, replace = FALSE))
+    pvalue <- 1 - rank(c(rho, rhos, recursive=TRUE), ties="first")[1]/(nresamplings + 1)
+    return(pvalue)
+}
+
+# Computes the p-value of the test of independence for Heller, Heller and 
+# Gorfine's measure.
+# x and y are samples from two random variables X and Y, respectively.
+hhg.test <- function (x, y, nresamplings = 1000) {
+    Dx <- as.matrix(dist(x, diag=TRUE, upper=TRUE))
+    Dy <- as.matrix(dist(y, diag=TRUE, upper=TRUE))
+    pvalue <- pvHHG(Dx, Dy, alpha_hyp=1, monte = nresamplings)$pv
+    return(pvalue)
+}
+
+
+# SIMULATIONS ==================================================================
+
+# Performs all the simulations
+simulate.all <- function (methods = 
+                          list("functions" = c(pearson.test, spearman.test, 
+                            kendall.test, dcorrelation.test, hoeffding.test, 
+                            hhg.test, mutualinfo.test, mic.test),
+                          "names" = c("Pearson", "Spearman", "Kendall", 
+                          "Dcor", "Hoeffding", "HHG", "MI", "MIC"))) {
+  
+    for (n in c(10, 30, 50)) {
+
+        # WITHOUT OUTLIERS:
+
+        # Independent 
+        x <- sort(rnorm(n))
+        simulate(x, title="Independent", methods=methods)
+
+        # Linear
+        x = seq(-2, 2, 4/(n -1))
+        simulate(x, association=0.5*x, title="Linear", methods=methods)
+
+        # Exponential
+        x = seq(-30, 20, 50/(n-1))
+        simulate(x, association=0.01*exp(x), title="Exponential", 
+                 methods=methods)
+
+        # Quadratic
+        x <- seq(-3, 3, 6/(n - 1))
+        simulate(x, association=x*x, title="Quadratic", methods=methods)
+        
+        # Sine
+        x <- seq(0, 10, 10/(n - 1))
+        simulate(x, association=2*sin(x), noise=unif, title="Sine", 
+                 methods=methods)
+        
+        # Circumference
+        y <- x <- vector(length = n)
+        x[1:(n/2)] <- seq(-5, 5, 10/(n/2 - 1))
+        x[(n/2 + 1):n] <- seq(5, -5, -10/(n/2 - 1))
+        y[1:(n/2)] <- sqrt(25 - x[1:(n/2)]*x[1:(n/2)])
+        y[(n/2 + 1):n] <- -sqrt(25 - x[(n/2 + 1):n]*x[(n/2 + 1):n])
+        simulate(x, association=y, noise=unif, title="Circumference", 
+                 methods=methods)
+
+        # Cross
+        y <- x <- vector(length = n)
+        x[1:(n/2)] <- seq(-5, 5, 10/(n/2 - 1))
+        x[(n/2 + 1):n] <- seq(5, -5, -10/(n/2 - 1))
+        y[1:(n/2)] <- x[1:(n/2)]
+        y[(n/2 + 1):n] <- -x[(n/2 + 1):n]
+        simulate(x, association=y, noise=unif, title="Cross", methods=methods)
+
+
+        # WITH OUTLIERS:
+        
+        # Independent with outliers
+        x <- sort(rnorm(n))
+        simulate(x, outliers.index=(min(n, n - as.integer(0.1*n) + 1)):n, 
+                 title="Independent with outliers", methods=methods)
+
+        # Linear with outliers
+        x = seq(-2, 2, 4/(n -1))
+        simulate(x, outliers.index=(min(n, n - as.integer(0.1*n) + 1)):n, 
+                 association = 0.5*x, title="Linear with outliers", 
+                 methods=methods, outliers.noise=negnorm)
+    }
+
+    for (n in c(40, 140)) {
+        # Square
+        x <- y <- vector(len = n)
+        x[1:(n/4)] <- seq(6, 9, 3/(n/4-1))
+        x[(n/4 + 1):(n/2)] <- rep(9, n/4)
+        x[(n/2+1):(3*n/4)] <- seq(9, 6, -3/(n/4-1))
+        x[(3*n/4+1):n] <- rep(6, n/4)
+
+        y[1:(n/4)] <- rep(6, n/4)
+        y[(n/4 + 1):(n/2)] <- seq(6, 9, 3/(n/4-1))
+        y[(n/2+1):(3*n/4)] <- rep(9, n/4)
+        y[(3*n/4+1):n] <- seq(9, 6, -3/(n/4-1))
+
+        simulate(x, association=y, noise=unif,  title="Square", methods=methods)
+    }
+
+    # Local correlation (n = 100) 
+    x <- seq(3,  6, 3/99)
+    y <- vector(len = 100)
+    y[1:40] <- 0
+    y[61:100] <- 0
+    y[41:60] <- x[41:60]
+    simulate(x, association = y, title="Local correlation", methods = methods)
+
+}
+
+
+# ROC CURVES ===================================================================
+
+# Computes the area under the ROC curve for each file (which contains a list of 
+# p-values) in a given directory for a fixed n.
+# We assume that all the file names are in the format
+# n=[SAMPLE_SIZE] - [SCENARIO_NAME] - [METHOD_NAME],
+# where [SAMPLE_SIZE] must be the same for all files in the directory.
+# Each file must contain a p-value per line.
+# The directory must contain output files from simulations performed for only
+# one sample size.
+auc.table <- function (directory) {
+    index <- which(!file.info(paste(directory, dir(directory), sep = "/"))[2])
+    i <- 0
+    j <- 0
+    rows <- vector()
+    cols <- vector()
+    for (file in dir(directory)[index]) {
+        name <- strsplit(file, " - ")[[1]]
+        i <- which(rows == name[2])[1]
+        if (is.na(i)) i <- length(rows) + 1
+        rows[i] <- name[2]
+        j <- which(cols == name[3])[1]
+        if (is.na(j)) j <- length(cols) + 1
+        cols[j] <- name[3]
+    }
+    table <- matrix(NA, nrow = length(rows), ncol = length(cols))
+    rownames(table) <- rows
+    colnames(table) <- cols
+    for (file in dir(directory)[index]) {
+        area <- auc(paste(directory, file, sep = "/"))
+        name <- strsplit(file, " - ")[[1]]
+        table[name[2], name[3]] <- area       
+    }
+    write.table(table, paste("AUC -", name[1], sep=" "))
+    print(table)
+}
+```
+
+### Weather variables
+
+```{r , echo=FALSE, warning= FALSE, message= FALSE}
+variables=c("Temp_2m", "Prec", "Hum", "filtered_aggregated_precipitation", "dry_days_filtered", "max_consecutive_dry_days", "gini_index_summer", "gini_index", "gini_weekly", "theil_index_summer", "theil_index")
+types=c("all", "median")
+for (var in variables)
+{
+  for (type in types)
+  {
+    data = read.csv(paste("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Normal/Weather_",type,"_years_",var,".csv",sep=""), header = TRUE)
+col_z=4
+zone_list=c(3:9)
+
+col=3
+data_modify=data[,c(2,col,col_z)] 
+c_zone=c()
+pearson=c()
+spearman=c()
+kendall=c()
+dcorrelation=c()
+hoeffding=c()
+c_zones=c()
+
+for (zone in zone_list)
+{
+    d=data_modify[which(data_modify$Weather_class == zone),]
+  if(length(d$IR)<5)
+  {
+    c_zones=c(c_zones,zone)
+    hoeffding=c(hoeffding, "NA")
+    pearson=c(pearson, "NA")
+    spearman=c(spearman, "NA")
+    kendall=c(kendall, "NA")
+    dcorrelation=c(dcorrelation, "NA")
+  }
+  else{
+  c_zones=c(c_zones,zone)
+  pearson=c(pearson, pearson.test(d$IR, d[,var]))
+  spearman=c(spearman, spearman.test(d$IR, d[,var]))
+  kendall=c(kendall, kendall.test(d$IR, d[,var]))
+  dcorrelation=c(dcorrelation, dcorrelation.test(d$IR, d[,var]))
+  hoeffding=c(hoeffding, hoeffding.test(d$IR, d[,var]))}
+}
+
+#######################################Chi-square test
+data_chi = read.csv(paste("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Chi/Zone_wise/Weather_",type,"_years_",var,"_chi.csv",sep=""), header = TRUE)
+chi=c()
+
+for (zone in zone_list)
+{
+  d=data_chi[which(data_chi$Weather_class == zone),]
+  if(nrow(d)>1){
+  df=d
+  df=df[which(df$Class_IR == "H"),]
+  if(nrow(df)>0){
+  fre=count(df, 'Class_var')
+  if(nrow(fre)==1)
+  {
+    if(fre$Class_var[1]=="H")
+    {
+      a=fre$freq[1]
+      b=0
+    } else{
+      b=fre$freq[1]
+      a=0
+    }
+  }else
+    {
+  a=fre$freq[1]   #'H' var for 'H' IR
+  b=fre$freq[2]   #'L' var for 'H' IR
+    }
+  }else
+  {a=0
+  b=0}
+  df=d
+  df=df[which(df$Class_IR == "L"),]
+  if(nrow(df)>0){
+  fre=count(df, 'Class_var')
+  if(nrow(fre)==1)
+  {
+    if(fre$Class_var[1]=="H")
+    {
+      c=fre$freq[1]
+      d=0
+    }else{
+      d=fre$freq[1]
+      c=0
+    }
+  }else{
+  c=fre$freq[1]   #'H' var for 'L' IR
+  d=fre$freq[2]   #'L' var for 'L' IR
+  }
+  }else
+  {c=0
+  d=0}
+  table=matrix(c(a,b,c,d), nrow=2)
+
+  chi=c(chi, chisq.test(table)$p.value)
+  }else{
+    chi=c(chi, "NA")
+  }
+}
+
+###############################################Chi for entire USA
+data_chi=read.csv(paste("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Chi/USA/Weather_",type,"_years_",var,"_chi.csv",sep=""), header = TRUE)
+df=data_chi
+df=df[which(df$Class_IR == "H"),]
+fre=count(df, 'Class_var')
+a=fre$freq[1]   #'H' var for 'H' IR
+b=fre$freq[2]   #'L' var for 'H' IR
+
+df=data_chi
+df=df[which(df$Class_IR == "L"),]
+fre=count(df, 'Class_var')
+c=fre$freq[1]   #'H' var for 'L' IR
+d=fre$freq[2]   #'L' var for 'L' IR
+
+table=matrix(c(a,b,c,d),  nrow=2)
+
+chi_USA=chisq.test(table)$p.value  #Storing chi-square p value for entire USA.
+
+#############################################
+df=data.frame(c_zones,kendall,dcorrelation,hoeffding,chi)
+print(df)
+print(paste("p-value for entire USA chi-square test=",chi_USA))
+
+############################# For plotting zone-wise graphs
+
+weather_key=c("Northwest", "West",  "West North Central",  "Southwest",  "East North Central",  "South", "Central", "Southeast", "Northeast")
+socio_key=c("Pacific", "Mountain", "West North Central", "West South Central", "East North Central","East South Central", "South Atlantic","Middle Atlantic","New England")
+col_z=4
+
+col=3
+data_modify=data[,c(2,col,col_z)] 
+
+for (zone in zone_list)
+{
+  d=data_modify[which(data_modify$Weather_class == zone),]
+  x=d[,var]
+  y=d$IR
+  plot(x,y, xlab=var, ylab="IR", main=weather_key[zone])
+  lines(lowess(x, y,f=0.1), col=2)
+  lines(lowess(x, y, f=0.2), col=3)
+  lines(lowess(x, y,f=0.3), col=4)
+  lines(lowess(x, y,f=0.4), col=5)
+}
+  }
+}
+```
+
+
+
+### Socio-economic variables
+
+```{r , echo=FALSE, warning= FALSE, message= FALSE}
+variables=c("Resident_population_White_alone_percent", "Median_Household_Income", "Poverty_percent_of_people")
+types=c("all", "median")
+for (var in variables)
+{
+  for (type in types)
+  {
+    data = read.csv(paste("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Normal/Socio_",type,"_years_",var,".csv",sep=""), header = TRUE)
+col_z=4
+col=3
+data_modify=data[,c(2,col,col_z)] 
+c_zone=c()
+pearson=c()
+spearman=c()
+kendall=c()
+dcorrelation=c()
+hoeffding=c()
+c_zones=c()
+
+for (zone in zone_list)
+{
+    d=data_modify[which(data_modify$Weather_class == zone),]
+  if(length(d$IR)<5)
+  {
+    c_zones=c(c_zones,zone)
+    hoeffding=c(hoeffding, "NA")
+    pearson=c(pearson, "NA")
+    spearman=c(spearman, "NA")
+    kendall=c(kendall, "NA")
+    dcorrelation=c(dcorrelation, "NA")
+  }
+  else{
+  c_zones=c(c_zones,zone)
+  pearson=c(pearson, pearson.test(d$IR, d[,var]))
+  spearman=c(spearman, spearman.test(d$IR, d[,var]))
+  kendall=c(kendall, kendall.test(d$IR, d[,var]))
+  dcorrelation=c(dcorrelation, dcorrelation.test(d$IR, d[,var]))
+  hoeffding=c(hoeffding, hoeffding.test(d$IR, d[,var]))}
+}
+
+#######################################Chi-square test
+data_chi = read.csv(paste("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Chi/Zone_wise/Socio_",type,"_years_",var,"_chi.csv",sep=""), header = TRUE)
+chi=c()
+
+for (zone in zone_list)
+{
+  d=data_chi[which(data_chi$Weather_class == zone),]
+  if(nrow(d)>1){
+  df=d
+  df=df[which(df$Class_IR == "H"),]
+  if(nrow(df)>0){
+  fre=count(df, 'Class_var')
+  if(nrow(fre)==1)
+  {
+    if(fre$Class_var[1]=="H")
+    {
+      a=fre$freq[1]
+      b=0
+    } else{
+      b=fre$freq[1]
+      a=0
+    }
+  }else
+    {
+  a=fre$freq[1]   #'H' var for 'H' IR
+  b=fre$freq[2]   #'L' var for 'H' IR
+    }
+  }else
+  {a=0
+  b=0}
+  df=d
+  df=df[which(df$Class_IR == "L"),]
+  if(nrow(df)>0){
+  fre=count(df, 'Class_var')
+  if(nrow(fre)==1)
+  {
+    if(fre$Class_var[1]=="H")
+    {
+      c=fre$freq[1]
+      d=0
+    }else{
+      d=fre$freq[1]
+      c=0
+    }
+  }else{
+  c=fre$freq[1]   #'H' var for 'L' IR
+  d=fre$freq[2]   #'L' var for 'L' IR
+  }
+  }else
+  {c=0
+  d=0}
+  table=matrix(c(a,b,c,d), nrow=2)
+
+  chi=c(chi, chisq.test(table)$p.value)
+  }else{
+    chi=c(chi, "NA")
+  }
+}
+
+###############################################Chi for entire USA
+data_chi=read.csv(paste("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Chi/USA/Socio_",type,"_years_",var,"_chi.csv",sep=""), header = TRUE)
+df=data_chi
+df=df[which(df$Class_IR == "H"),]
+fre=count(df, 'Class_var')
+a=fre$freq[1]   #'H' var for 'H' IR
+b=fre$freq[2]   #'L' var for 'H' IR
+
+df=data_chi
+df=df[which(df$Class_IR == "L"),]
+fre=count(df, 'Class_var')
+c=fre$freq[1]   #'H' var for 'L' IR
+d=fre$freq[2]   #'L' var for 'L' IR
+
+table=matrix(c(a,b,c,d),  nrow=2)
+
+chi_USA=chisq.test(table)$p.value  #Storing chi-square p value for entire USA.
+
+#############################################
+df=data.frame(c_zones,kendall,dcorrelation,hoeffding,chi)
+print(df)
+print(paste("p-value for entire USA chi-square test=",chi_USA))
+
+############################# For plotting zone-wise graphs
+
+weather_key=c("Northwest", "West",  "West North Central",  "Southwest",  "East North Central",  "South", "Central", "Southeast", "Northeast")
+socio_key=c("Pacific", "Mountain", "West North Central", "West South Central", "East North Central","East South Central", "South Atlantic","Middle Atlantic","New England")
+col_z=4
+col=3
+data_modify=data[,c(2,col,col_z)] 
+
+for (zone in zone_list)
+{
+  d=data_modify[which(data_modify$Weather_class == zone),]
+  x=d[,var]
+  y=d$IR
+  plot(x,y, xlab=var, ylab="IR", main=weather_key[zone])
+  lines(lowess(x, y,f=0.1), col=2)
+  lines(lowess(x, y, f=0.2), col=3)
+  lines(lowess(x, y,f=0.3), col=4)
+  lines(lowess(x, y,f=0.4), col=5)
+}
+  }
+}
+```
+
