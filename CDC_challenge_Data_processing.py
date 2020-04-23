@@ -49,7 +49,7 @@ years=range(2000,2019)
 
 
 #Import main WNV data
-path_data="/Users/sparshagarwal/Downloads/WNV_challenge/neurownv_by_county.csv"
+path_data="/home/sparsha2/data/neurownv_by_county.csv"
 data=pd.read_csv(path_data)
 data.head()
 
@@ -91,7 +91,7 @@ bin_df
 # In[529]:
 
 
-data.to_csv("/Users/sparshagarwal/Desktop/NCSA/Dataframes/WNV_challenge.csv", index=False)
+data.to_csv("/home/sparsha2/data/WNV_challenge.csv", index=False)
 
 
 # In[ ]:
@@ -107,7 +107,7 @@ data.to_csv("/Users/sparshagarwal/Desktop/NCSA/Dataframes/WNV_challenge.csv", in
 
 #Loading the data with State Avg column
 
-path_data="/Users/sparshagarwal/Desktop/NCSA/Dataframes/WNV_challenge_neighCountyAvg.csv"
+path_data="/home/sparsha2/data/WNV_challenge_neighCountyAvg.csv"
 data=pd.read_csv(path_data)
 
 #Changes/Cleaning that needs to be done in data as mentioned by the cdc manual
@@ -163,7 +163,7 @@ data.head()
 # In[536]:
 
 
-path_data_var="/Users/sparshagarwal/Downloads/NARR_weather_data/weekly_precipitation_gini.csv"
+path_data_var="/home/sparsha2/data/weekly_precipitation_gini.csv"
 data_var=pd.read_csv(path_data_var)
 data_var.head()
 
@@ -211,19 +211,19 @@ for year in years:
 # In[538]:
 
 
-pd.read_csv("/Users/sparshagarwal/Downloads/NARR_weather_data/air.sfc_complete.csv").head()
+pd.read_csv("/home/sparsha2/data/air.sfc_complete.csv").head()
 
 
 # In[539]:
 
 
-pd.read_csv("/Users/sparshagarwal/Downloads/NARR_weather_data/apcp_complete.csv").head()
+pd.read_csv("/home/sparsha2/data/apcp_complete.csv").head()
 
 
 # In[540]:
 
 
-pd.read_csv("/Users/sparshagarwal/Downloads/NARR_weather_data/rhum.2m_complete.csv").head()
+pd.read_csv("/home/sparsha2/data/rhum.2m_complete.csv").head()
 
 
 # The code just below this takes a lot of time, and therefore is commented out so that it does not run. The results obtained after running the code below are stored in a csv file/dataframe which is imported everytime when it is to be used.
@@ -241,11 +241,11 @@ pd.read_csv("/Users/sparshagarwal/Downloads/NARR_weather_data/rhum.2m_complete.c
 # for var in variables:
 #     value=[]
 #     if(var=="Temp"):
-#         path_data_var="/Users/sparshagarwal/Downloads/NARR_weather_data/air.sfc_complete.csv"
+#         path_data_var="/home/sparsha2/data/air.sfc_complete.csv"
 #     if(var=="Prec"):
-#         path_data_var="/Users/sparshagarwal/Downloads/NARR_weather_data/apcp_complete.csv"
+#         path_data_var="/home/sparsha2/data/apcp_complete.csv"
 #     if(var=="Hum"):
-#         path_data_var="/Users/sparshagarwal/Downloads/NARR_weather_data/rhum.2m_complete.csv"
+#         path_data_var="/home/sparsha2/data/rhum.2m_complete.csv"
 #     data_var=pd.read_csv(path_data_var)
     
 #     year_col=[]
@@ -320,7 +320,7 @@ data.head()
 
 
 # Path to the file with WNV data used to classify urban and rural counties
-wnv_file_path= "/Users/sparshagarwal/Downloads/WMV_data/Arbovirus_risk_modeling_US/WNV_human_cases/WNV_NI_NNI_1999to2015_prevalence_incidence_final_20180530.csv"
+wnv_file_path= "/home/sparsha2/data/WNV_NI_NNI_1999to2015_prevalence_incidence_final_20180530.csv"
 #Adding County_type column
 data_old=pd.read_csv(wnv_file_path, encoding='latin-1')
 data_old.rename(columns={'GEOID10':'GEOID', 'Select_County':'County_type'}, inplace=True)
@@ -338,13 +338,13 @@ data.head()
 
 
 # #To store the data so that so taht socioeconomic data does not have be to added again.
-# data.to_csv("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Data_merged.csv", index=False)
+# data.to_csv("/home/sparsha2/data/Data_merged.csv", index=False)
 
 
 # In[554]:
 
 
-data=pd.read_csv("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Data_merged.csv")
+data=pd.read_csv("/home/sparsha2/data/Data_merged.csv")
 data.head()
 
 
@@ -357,13 +357,13 @@ data.head()
 # In[558]:
 
 
-pd.read_csv("/Users/sparshagarwal/Downloads/WMV_data/Socioeconomics/se_data.csv").head()
+pd.read_csv("/home/sparsha2/data/se_data.csv").head()
 
 
 # In[559]:
 
 
-pd.read_csv("/Users/sparshagarwal/Downloads/WMV_data/Socioeconomics/race_data.csv").head()
+pd.read_csv("/home/sparsha2/data/race_data.csv").head()
 
 
 # Adding socioeconomic data for 10 years. The code below is run only if socio economic data is added. Adding socioeconomic data reduces the year range from 2000-2018 to 2000-2009.
@@ -375,9 +375,9 @@ variables=["Resident_population_White_alone_percent", "Median_Household_Income",
 years=range(2000,2010)
 for variable in variables:
     if(variable=="Poverty_percent_of_people" or variable=="Median_Household_Income"):
-        data_path="/Users/sparshagarwal/Downloads/WMV_data/Socioeconomics/se_data.csv"
+        data_path="/home/sparsha2/data/se_data.csv"
     if(variable=="Resident_population_White_alone_percent"):
-        data_path="/Users/sparshagarwal/Downloads/WMV_data/Socioeconomics/race_data.csv"
+        data_path="/home/sparsha2/data/race_data.csv"
     # Adding data for the variable
     s_data=pd.read_csv(data_path)
     s_data.rename(columns={'STCOU':'GEOID', 'YEAR':'year'}, inplace=True)
@@ -404,9 +404,9 @@ data.head()
 
 ##This code is for adding weather data in CDD range but takes infinite time so ignore this part.
 
-# path_data_temp="/Users/sparshagarwal/Downloads/NARR_weather_data/air.sfc_complete.csv"
-# path_data_prec="/Users/sparshagarwal/Downloads/NARR_weather_data/apcp_complete.csv"
-# path_data_hum="/Users/sparshagarwal/Downloads/NARR_weather_data/rhum.2m_complete.csv"
+# path_data_temp="/home/sparsha2/data/air.sfc_complete.csv"
+# path_data_prec="/home/sparsha2/data/apcp_complete.csv"
+# path_data_hum="/home/sparsha2/data/rhum.2m_complete.csv"
 # data_temp=pd.read_csv(path_data_temp)
 # data_prec=pd.read_csv(path_data_prec)
 # data_hum=pd.read_csv(path_data_hum)
@@ -543,8 +543,8 @@ for prior_year in range(year-2,year-num_years-2,-1):
 
 
 #Exporting data so that it can be imported in another jupyter notebook.
-temporal_df.to_csv("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Temporal_df.csv", index=False)
-temporal_df_test.to_csv("/Users/sparshagarwal/Desktop/NCSA/Dataframes/Temporal_df_test.csv", index=False)
+temporal_df.to_csv("/home/sparsha2/data/Temporal_df.csv", index=False)
+temporal_df_test.to_csv("/home/sparsha2/data/Temporal_df_test.csv", index=False)
 
 
 # In[573]:

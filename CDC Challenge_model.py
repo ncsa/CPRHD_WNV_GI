@@ -77,9 +77,9 @@ features=["count","neighborCountyAvg", "Gini", "Temp", "Prec", "Hum", "County_ty
 
 
 #Importing training and testing data
-train_path="/Users/sparshagarwal/Desktop/NCSA/Dataframes/Temporal_df.csv"
+train_path="/home/sparsha2/data/Temporal_df.csv"
 temporal_df=pd.read_csv(train_path)
-test_path="/Users/sparshagarwal/Desktop/NCSA/Dataframes/Temporal_df_test.csv"
+test_path="/home/sparsha2/data/Temporal_df_test.csv"
 temporal_df_test=pd.read_csv(test_path)
 
 
